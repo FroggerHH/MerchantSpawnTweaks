@@ -1,10 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Extensions;
 using UnityEngine;
 using static HeightmapBuilder;
 using static MerchantSpawnTweaks.Plugin;
-using Enumerable = System.Linq.Enumerable;
 
 namespace MerchantSpawnTweaks;
 
@@ -17,7 +15,7 @@ public static class Relocator
 
     public static Vector2 RandomlyRelocateMerchant()
     {
-        var locationInstance = Enumerable.First(GetHaldors()).Value;
+        var locationInstance = GetHaldors().First().Value;
         if (locationInstance.m_location != null && !locationInstance.m_placed)
         {
             DebugWarning("For first relocation haldor location needs to be explored by someone");
@@ -58,7 +56,9 @@ public static class Relocator
         }
 
         var haldorLoc = GetHaldorPrefab();
-        if (haldorLoc.m_prefab) haldorLoc.m_prefab.transform.position = Vector3.zero; // 1931579592,1955808584,1496468950,1011581049,1242205269
+        if (haldorLoc.m_prefab)
+            haldorLoc.m_prefab.transform.position =
+                Vector3.zero; // 1931579592,1955808584,1496468950,1011581049,1242205269
         if (haldorLoc.m_location) haldorLoc.m_location.transform.position = Vector3.zero;
         savedIDs.Clear();
         foreach (var zdo in objects)
@@ -78,8 +78,8 @@ public static class Relocator
         _self.Config.Reload();
         _self.UpdateConfiguration();
 
-        var locationInstance = Enumerable
-            .ToList(Enumerable.Select(ZoneSystem.instance.m_locationInstances, x => x.Value))
+        var locationInstance = ZoneSystem.instance.m_locationInstances.Select(x => x.Value)
+            .ToList()
             .Find(x => x.m_location.m_prefabName == HALDOR_LOCATION_NAME);
         locationInstance.m_position = position;
         ZoneSystem.instance.m_locationInstances[new Vector2i(haldorFirstZone)] = locationInstance;
