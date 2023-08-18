@@ -9,7 +9,7 @@ public static class RandomlyRelocateOnMorning
     [HarmonyPatch(nameof(EnvMan.OnMorning))]
     private static void Prefix(EnvMan __instance)
     {
-        var day = (int)(__instance.m_totalSeconds / __instance.m_dayLengthSec);
+        var day = __instance.GetCurrentDay();
         if (relocateInterval > 0 && day - lastRelocateDay >= relocateInterval)
         {
             Debug("Morning, relocating merchant...");

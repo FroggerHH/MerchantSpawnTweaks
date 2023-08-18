@@ -73,8 +73,8 @@ public static class Relocator
             zdo.SetPosition(resultPos);
         }
 
-        var value = string.Join(",", savedIDs);
-        savedIDsConfig.Value = value;
+        lastRelocateDayConfig.Value = EnvMan.instance.GetCurrentDay();
+        savedIDsConfig.Value = string.Join(",", savedIDs);
         _self.Config.Reload();
         _self.UpdateConfiguration();
 

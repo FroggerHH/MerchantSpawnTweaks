@@ -19,7 +19,7 @@ public static class TerminalCommands
     {
         private static void Postfix()
         {
-            new Terminal.ConsoleCommand("RandomlyRelocateMerchant", "",
+            new Terminal.ConsoleCommand("RandomlyRelocateMerchant", "The merchant will move to one of the allowed positions",
                 args =>
                 {
                     try
@@ -47,7 +47,7 @@ public static class TerminalCommands
                     }
                 }, true);
             new Terminal.ConsoleCommand("addMerchantPos",
-                "player position will be added to list of valid positions for merchant to spawn",
+                "Player position will be added to list of valid positions for merchant to spawn",
                 args =>
                 {
                     try

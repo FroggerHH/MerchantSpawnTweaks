@@ -58,31 +58,13 @@ internal class Plugin : BaseUnityPlugin
 
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), ModGUID);
     }
-
-    internal static KeyValuePair<Vector2i, ZoneSystem.LocationInstance> FindHaldorLocation()
-    {
-        return ZoneSystem.instance.m_locationInstances.ToList()
-            .Find(x => x.Value.m_location.m_prefabName == HALDOR_LOCATION_NAME);
-    }
-
-
-    internal static List<KeyValuePair<Vector2i, ZoneSystem.LocationInstance>> GetHaldors()
-    {
-        return ZoneSystem.instance.m_locationInstances
+    
+    internal static List<KeyValuePair<Vector2i, ZoneSystem.LocationInstance>> GetHaldors() =>
+        ZoneSystem.instance.m_locationInstances
             .Where(x => x.Value.m_location.m_prefabName == HALDOR_LOCATION_NAME)
             .ToList();
-    }
 
-    internal static ZoneSystem.ZoneLocation GetHaldorPrefab()
-    {
-        return ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
-    }
-
-    internal static void PrintPingsNames()
-    {
-        Minimap.instance.m_locationPins.ToList().Select(x => x.Value).ToList()
-            .ForEach(x => Debug(x.m_name));
-    }
+    internal static ZoneSystem.ZoneLocation GetHaldorPrefab() => ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
 
     #region values
 
