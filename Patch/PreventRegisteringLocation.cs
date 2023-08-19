@@ -19,6 +19,7 @@ public static class PreventRegisteringLocation
 
         location.m_iconAlways = true;
 
+        var posNoY = pos.ToV2().RoundCords();
         if (merchantCurrentPosition == Vector2.zero || GetHaldors().Count <= 0)
         {
             if (merchantPositions.Count > 0)
@@ -27,10 +28,7 @@ public static class PreventRegisteringLocation
             }
             else
             {
-                //Good
-                var posNoY = pos.ToV2().RoundCords();
-                Debug($"Registering haldor, position is {pos}, writing {posNoY}");
-                merchantPositions.Add(posNoY);
+                merchantPositions.TryAdd(posNoY);
                 SetMerchantPositionsConfig();
                 merchantCurrentPositionConfig.Value = posNoY;
                 var vector2I = instance.GetZone(pos);
@@ -38,7 +36,6 @@ public static class PreventRegisteringLocation
 
                 _self.Config.Reload();
                 _self.UpdateConfiguration();
-                //Good
             }
 
 
@@ -48,6 +45,9 @@ public static class PreventRegisteringLocation
         }
 
         Debug("Prevented haldor to spawn");
+        merchantPositions.TryAdd(posNoY);
+        SetMerchantPositionsConfig();
+        
         return false;
     }
 }

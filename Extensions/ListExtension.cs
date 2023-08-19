@@ -25,6 +25,16 @@ public static class ListExtension
         return result;
     }
 
+    public static string GetString<T>(this IEnumerable<T> list, string separator = ", ")
+    {
+        return string.Join(separator, list);
+    }
+
+    public static void TryAdd<T>(this List<T> list, T value)
+    {
+        if (!list.Contains(value)) list.Add(value);
+    }
+
     public static T Next<T>(this List<T> list, T current)
     {
         if (list == null || list.Count == 0) return default;

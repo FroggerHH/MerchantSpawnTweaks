@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
+using Extensions;
 using HarmonyLib;
 using ServerSync;
 using UnityEngine;
@@ -45,11 +46,7 @@ internal class Plugin : BaseUnityPlugin
             }));
 
         SetupWatcher();
-        Config.ConfigReloaded += (_, _) =>
-        {
-            Debug("Config reloaded.");
-            UpdateConfiguration();
-        };
+        Config.ConfigReloaded += (_, _) => UpdateConfiguration();
         Config.SaveOnConfigSet = true;
         Config.Save();
 
@@ -58,17 +55,22 @@ internal class Plugin : BaseUnityPlugin
 
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), ModGUID);
     }
-    
-    internal static List<KeyValuePair<Vector2i, ZoneSystem.LocationInstance>> GetHaldors() =>
-        ZoneSystem.instance.m_locationInstances
+
+    internal static List<KeyValuePair<Vector2i, ZoneSystem.LocationInstance>> GetHaldors()
+    {
+        return ZoneSystem.instance.m_locationInstances
             .Where(x => x.Value.m_location.m_prefabName == HALDOR_LOCATION_NAME)
             .ToList();
+    }
 
-    internal static ZoneSystem.ZoneLocation GetHaldorPrefab() => ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
+    internal static ZoneSystem.ZoneLocation GetHaldorPrefab()
+    {
+        return ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
+    }
 
     #region values
 
-    internal const string ModName = "MerchantSpawnTweaks", ModVersion = "1.0.0", ModGUID = "com.Frogger." + ModName;
+    internal const string ModName = "Frogger.MerchantSpawnTweaks", ModVersion = "1.1.0", ModGUID = "com." + ModName;
     internal static Plugin _self;
     internal const string HALDOR_LOCATION_NAME = "Vendor_BlackForest";
 
@@ -180,7 +182,6 @@ internal class Plugin : BaseUnityPlugin
     {
         try
         {
-            // modEnabled = modEnabledConfig.Value;
             relocateInterval = relocateIntervalConfig.Value;
             lastRelocateDay = lastRelocateDayConfig.Value;
             merchantCurrentPosition = merchantCurrentPositionConfig.Value;
@@ -211,7 +212,7 @@ internal class Plugin : BaseUnityPlugin
             var vector2 = new Vector2();
             vector2.x = int.Parse(coords[0]);
             vector2.y = int.Parse(coords[1]);
-            merchantPositions.Add(vector2);
+            merchantPositions.TryAdd(vector2);
         }
     }
 

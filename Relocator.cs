@@ -25,7 +25,6 @@ public static class Relocator
         Debug("Finding new place to relocate merchant...");
 
         var next = merchantPositions.Next(merchantCurrentPosition);
-        Debug($"Next pos is {next}");
         merchantCurrentPositionConfig.Value = next;
         _self.Config.Reload();
         _self.UpdateConfiguration();
@@ -68,7 +67,6 @@ public static class Relocator
             var resultPos = position + prefabPosition;
 
             var newId = resultPos.RoundCords().GetHashCode() + zdo.GetPrefab();
-            Debug($"New id is {newId}");
             savedIDs.Add(newId);
             zdo.SetPosition(resultPos);
         }
@@ -84,7 +82,12 @@ public static class Relocator
         locationInstance.m_position = position;
         ZoneSystem.instance.m_locationInstances[new Vector2i(haldorFirstZone)] = locationInstance;
 
-        Minimap.instance.UpdateLocationPins(Time.deltaTime);
+
+        // Minimap.instance.m_locationPins.Select(x => x.Value).ToList()
+        //     .ForEach(x => Minimap.instance.DestroyPinMarker(x));
+        // Minimap.instance.m_locationPins.Clear();
+        Minimap.instance.m_updateLocationsTimer = -1;
+        Minimap.instance.UpdateLocationPins(0);
 
         _self.Config.Reload();
         _self.UpdateConfiguration();
