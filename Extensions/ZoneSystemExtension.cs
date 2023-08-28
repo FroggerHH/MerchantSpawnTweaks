@@ -17,10 +17,7 @@ public static class ZoneSystemExtension
 
     public static string GetOrAddGlobalKey(this ZoneSystem zoneSystem, string key, string defaultValue)
     {
-        if (zoneSystem.GetGlobalKey(key, out var value))
-        {
-            return value;
-        }
+        if (zoneSystem.GetGlobalKey(key, out var value)) return value;
 
         zoneSystem.SetGlobalKey(key, defaultValue);
         return defaultValue;

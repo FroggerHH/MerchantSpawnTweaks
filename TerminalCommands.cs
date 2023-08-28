@@ -4,10 +4,10 @@ using Extensions;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static MerchantSpawnTweaks.Plugin;
+using static TravelingLocations.Plugin;
 using static Terminal;
 
-namespace MerchantSpawnTweaks;
+namespace TravelingLocations;
 
 public static class TerminalCommands
 {
@@ -57,14 +57,13 @@ public static class TerminalCommands
                             throw new Exception("First argument must be a location name (string)");
 
                         var locName = args[1];
-                        if (!locationsToMove.Contains(locName)) locationsToMove.Add(locName);
 
                         var newPos =
                             (Player.m_localPlayer.transform.position + Player.m_localPlayer.transform.forward * 2f +
                              Vector3.up).RoundCords().ToV2().ToSimpleVector2();
 
                         if (locationsPositions.ContainsKey(locName)) locationsPositions[locName].TryAdd(newPos);
-                        else locationsPositions.Add(locName, new() { newPos });
+                        else locationsPositions.Add(locName, new List<SimpleVector2> { newPos });
 
                         args.Context.AddString($"Done, position {newPos} added");
                         UpdatePositionsFile();

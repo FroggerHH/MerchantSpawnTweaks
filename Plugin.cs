@@ -8,11 +8,10 @@ using BepInEx.Configuration;
 using Extensions;
 using HarmonyLib;
 using ServerSync;
-using UnityEngine;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace MerchantSpawnTweaks;
+namespace TravelingLocations;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 internal class Plugin : BaseUnityPlugin
@@ -22,15 +21,11 @@ internal class Plugin : BaseUnityPlugin
         _self = this;
 
         Config.SaveOnConfigSet = false;
-        //modEnabledConfig = config("General", "Enabled", modEnabled, "Enable this mod");
         relocateIntervalConfig = config("Merchant", "RelocateInterval", relocateInterval,
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
         lastRelocateDayConfig = config("Merchant", "LastRelocateDay", lastRelocateDay,
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
-        //locationsPositionsConfig = config("Merchant", "All merchant positions", string.Empty,
-        //    "Example:1 1,5 5,66 88  It means haldor can spawn on coordinates x:1 z:1, x:5 z:5 and x:66 z:88");
 
-        locationsToMoveConfig = config("Main", "LocationsToMove", "Vendor_BlackForest, Hildir_camp", "");
         SetupWatcher();
         Config.ConfigReloaded += (_, _) => UpdateConfiguration();
         Config.SaveOnConfigSet = true;
@@ -44,14 +39,12 @@ internal class Plugin : BaseUnityPlugin
 
     #region values
 
-    internal const string ModName = "Frogger.MerchantSpawnTweaks", ModVersion = "1.1.0", ModGUID = "com." + ModName;
+    internal const string ModName = "Frogger.TravelingLocations", ModVersion = "2.0.0", ModGUID = "com." + ModName;
 
     internal static Plugin _self;
-    //internal const string HALDOR_LOCATION_NAME = "Vendor_BlackForest";
 
     #endregion
 
-    //internal static ZoneSystem.ZoneLocation GetHaldorPrefab() => ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
 
     #region tools
 
@@ -118,7 +111,10 @@ internal class Plugin : BaseUnityPlugin
         positionsWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
         positionsWatcher.EnableRaisingEvents = true;
 
-        void LoadPositionsFromFile(object sender, FileSystemEventArgs e) => Plugin.LoadPositionsFromFile();
+        void LoadPositionsFromFile(object sender, FileSystemEventArgs e)
+        {
+            Plugin.LoadPositionsFromFile();
+        }
     }
 
 
@@ -146,28 +142,16 @@ internal class Plugin : BaseUnityPlugin
 
     #region configs
 
-    //public static ConfigEntry<bool> modEnabledConfig;
     public static ConfigEntry<int> relocateIntervalConfig;
-
     public static ConfigEntry<int> lastRelocateDayConfig;
-    //public static ConfigEntry<string> locationsPositionsConfig;
 
-    public static ConfigEntry<string> locationsToMoveConfig;
-
-    //public static bool modEnabled;
     public static int relocateInterval = 1;
     public static int lastRelocateDay;
 
-    public static List<string> locationsToMove = new();
-
     public static Dictionary<string, List<SimpleVector2>> locationsPositions = new()
     {
-        {
-            "Vendor_BlackForest", new()
-        },
-        {
-            "Hildir_camp", new()
-        }
+        { "Vendor_BlackForest", new List<SimpleVector2>() },
+        { "Hildir_camp", new List<SimpleVector2>() }
     };
 
     #endregion
@@ -178,15 +162,11 @@ internal class Plugin : BaseUnityPlugin
         {
             relocateInterval = relocateIntervalConfig.Value;
             lastRelocateDay = lastRelocateDayConfig.Value;
-            locationsToMove = locationsToMoveConfig.Value
-                .Split(new string[1] { ", " }, StringSplitOptions.RemoveEmptyEntries).ToList();
 
             LoadPositionsFromFile();
 
-
             if (ZoneSystem.instance)
-            {
-                foreach (var loc in locationsToMove)
+                foreach (var loc in locationsPositions.Keys)
                 {
                     var where = ZoneSystem.instance.m_locationInstances
                         .Where(x => x.Value.m_location.m_prefabName == loc)
@@ -198,7 +178,6 @@ internal class Plugin : BaseUnityPlugin
                         ZoneSystem.instance.m_locationInstances.Where(x => !where.Contains(x))
                             .ToDictionary(x => x.Key, y => y.Value);
                 }
-            }
 
             Debug("Configuration Received");
         }
@@ -224,10 +203,13 @@ internal class Plugin : BaseUnityPlugin
             .Build();
 
         var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
-        using (StreamWriter writer = new(path, false)) writer.Write(serializer.Serialize(locationsPositions));
+        using (StreamWriter writer = new(path, false))
+        {
+            writer.Write(serializer.Serialize(locationsPositions));
+        }
     }
 
-    static string secondConfigFileName = $"{ModName.Replace("Frogger.", string.Empty)}.config.yml";
+    private static readonly string secondConfigFileName = $"{ModName.Replace("Frogger.", string.Empty)}.config.yml";
 
     internal static void LoadPositionsFromFile()
     {
@@ -238,7 +220,11 @@ internal class Plugin : BaseUnityPlugin
         var str = string.Empty;
         var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
         if (!File.Exists(path)) UpdatePositionsFile();
-        using (StreamReader reader = new(path)) str = reader.ReadToEnd();
+        using (StreamReader reader = new(path))
+        {
+            str = reader.ReadToEnd();
+        }
+
         locationsPositions = deserializer.Deserialize<Dictionary<string, List<SimpleVector2>>>(str);
     }
 

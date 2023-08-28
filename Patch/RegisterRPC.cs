@@ -1,6 +1,6 @@
 ﻿using HarmonyLib;
 
-namespace MerchantSpawnTweaks.Patch;
+namespace TravelingLocations.Patch;
 
 [HarmonyPatch(typeof(ZNetScene))]
 public static class RegisterRPC

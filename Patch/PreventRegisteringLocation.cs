@@ -2,24 +2,25 @@
 using Extensions;
 using HarmonyLib;
 using UnityEngine;
-using static MerchantSpawnTweaks.Plugin;
+using static TravelingLocations.Plugin;
 using static ZoneSystem;
 
-namespace MerchantSpawnTweaks.Patch;
+namespace TravelingLocations.Patch;
 
 [HarmonyPatch]
 public static class PreventRegisteringLocation
 {
     [HarmonyPatch(typeof(ZoneSystem), nameof(ZoneSystem.RegisterLocation))]
-    [HarmonyPrefix, HarmonyWrapSafe]
+    [HarmonyPrefix]
+    [HarmonyWrapSafe]
     private static bool ZoneSystem_RegisterLocation(ZoneSystem __instance, ZoneLocation location,
         Vector3 pos, bool generated)
     {
-        if (!locationsToMove.Contains(location.m_prefabName)) return true;
+        if (!locationsPositions.ContainsKey(location.m_prefabName)) return true;
 
         var posNoY = pos.ToV2().RoundCords().ToSimpleVector2();
         if (!locationsPositions.ContainsKey(location.m_prefabName))
-            locationsPositions.Add(location.m_prefabName, new() { posNoY });
+            locationsPositions.Add(location.m_prefabName, new List<SimpleVector2> { posNoY });
         else locationsPositions[location.m_prefabName].TryAdd(posNoY);
         UpdatePositionsFile();
         _self.Config.Reload();

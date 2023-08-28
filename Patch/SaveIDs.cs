@@ -2,10 +2,10 @@
 // using Extensions;
 // using HarmonyLib;
 // using UnityEngine;
-// using static MerchantSpawnTweaks.Plugin;
+// using static TravelingLocations.Plugin;
 // using static ZoneSystem;
 //
-// namespace MerchantSpawnTweaks.Patch;
+// namespace TravelingLocations.Patch;
 //
 // [HarmonyPatch]
 // public static class SaveIDs

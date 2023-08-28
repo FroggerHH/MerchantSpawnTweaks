@@ -18,14 +18,26 @@ public struct SimpleVector2 : IEquatable<SimpleVector2>
     {
     }
 
-    public bool Equals(SimpleVector2 other) => x == other.x && y == other.y;
+    public bool Equals(SimpleVector2 other)
+    {
+        return x == other.x && y == other.y;
+    }
 
-    public override string ToString() => $"X: {x}, Y: {y}";
+    public override string ToString()
+    {
+        return $"X: {x}, Y: {y}";
+    }
 
-    public Vector2 ToVector2() => new Vector2(this.x, this.y);
+    public Vector2 ToVector2()
+    {
+        return new Vector2(x, y);
+    }
 }
 
 public static class SimpleVector2Ext
 {
-    public static SimpleVector2 ToSimpleVector2(this Vector2 vector2) => new SimpleVector2(vector2.x, vector2.y);
+    public static SimpleVector2 ToSimpleVector2(this Vector2 vector2)
+    {
+        return new SimpleVector2(vector2.x, vector2.y);
+    }
 }
