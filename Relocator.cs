@@ -16,11 +16,12 @@ public static class Relocator
     private static bool calculationsFinished;
     private static List<ZDO> objects = new();
     private static List<Task> tasks = new();
-    private static bool bysy;
+    private static bool busy;
 
     public static void RandomlyRelocateLocations(bool sendMapPing = false)
     {
-        bysy = true;
+        //if(busy) return;
+        busy = true;
         tasks.ForEach(x => x.Dispose());
         tasks = new List<Task>();
         _self.StopAllCoroutines();
@@ -110,7 +111,7 @@ public static class Relocator
 
         var time = (DateTime.Now - now).TotalSeconds;
         Debug($"Finished relocating, took {time} seconds.");
-        bysy = false;
+        busy = false;
     }
 
     internal static void GetLocationRelatedObjects(LocationInstance location)

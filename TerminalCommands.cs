@@ -21,7 +21,7 @@ public static class TerminalCommands
     {
         private static void Postfix()
         {
-            new ConsoleCommand("RandomlyRelocateLocations", "The merchant will move to one of the allowed positions",
+            new ConsoleCommand("randomlyrelocatelocs", "",
                 args =>
                 {
                     try
@@ -34,14 +34,14 @@ public static class TerminalCommands
 
                         Relocator.RandomlyRelocateLocations(true);
 
-                        args.Context.AddString("Done, merchant randomly relocated. New position pinged.");
+                        args.Context.AddString("Wait for it, it is a long process. Do not spam command");
                     }
                     catch (Exception e)
                     {
                         args.Context.AddString("<color=red>Error: " + e.Message + "</color>");
                     }
                 }, true);
-            new ConsoleCommand("addMerchantPos",
+            new ConsoleCommand("addPos",
                 "[Location name] Player position will be added to list of valid positions for merchant to spawn",
                 args =>
                 {
@@ -74,7 +74,7 @@ public static class TerminalCommands
                     }
                 }, true);
 
-            new ConsoleCommand("createNewRandomPositionsForHaldor",
+            new ConsoleCommand("createRandomPositions",
                 "Adds [count] random positions to the [Location name] to relocate",
                 args =>
                 {
