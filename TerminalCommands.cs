@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Extensions;
 using HarmonyLib;
 using UnityEngine;
@@ -20,7 +21,7 @@ public static class TerminalCommands
     {
         private static void Postfix()
         {
-            new ConsoleCommand("RandomlyRelocateMerchant", "The merchant will move to one of the allowed positions",
+            new ConsoleCommand("RandomlyRelocateLocations", "The merchant will move to one of the allowed positions",
                 args =>
                 {
                     try
@@ -31,16 +32,9 @@ public static class TerminalCommands
                             return;
                         }
 
-                        var newPos = Relocator.RandomlyRelocateMerchant();
-                        if (newPos == Vector2.zero)
-                        {
-                            args.Context.AddString(
-                                "<color=yellow>For first relocation haldor location needs to be explored by someone.</color>");
-                            return;
-                        }
+                        Relocator.RandomlyRelocateLocations(true);
 
                         args.Context.AddString("Done, merchant randomly relocated. New position pinged.");
-                        Chat.instance.SendPing(newPos.ToV3());
                     }
                     catch (Exception e)
                     {
@@ -48,7 +42,7 @@ public static class TerminalCommands
                     }
                 }, true);
             new ConsoleCommand("addMerchantPos",
-                "Player position will be added to list of valid positions for merchant to spawn",
+                "[Location name] Player position will be added to list of valid positions for merchant to spawn",
                 args =>
                 {
                     try
@@ -59,18 +53,21 @@ public static class TerminalCommands
                             return;
                         }
 
+                        if (args.Args.Length == 1)
+                            throw new Exception("First argument must be a location name (string)");
+
+                        var locName = args[1];
+                        if (!locationsToMove.Contains(locName)) locationsToMove.Add(locName);
+
                         var newPos =
                             (Player.m_localPlayer.transform.position + Player.m_localPlayer.transform.forward * 2f +
-                             Vector3.up).RoundCords().ToV2();
-                        if (merchantPositions.Contains(newPos))
-                        {
-                            args.Context.AddString($"Position {newPos} already exists");
-                            return;
-                        }
+                             Vector3.up).RoundCords().ToV2().ToSimpleVector2();
+
+                        if (locationsPositions.ContainsKey(locName)) locationsPositions[locName].TryAdd(newPos);
+                        else locationsPositions.Add(locName, new() { newPos });
 
                         args.Context.AddString($"Done, position {newPos} added");
-                        merchantPositions.TryAdd(newPos);
-                        SetMerchantPositionsConfig();
+                        UpdatePositionsFile();
                     }
                     catch (Exception e)
                     {
@@ -79,7 +76,7 @@ public static class TerminalCommands
                 }, true);
 
             new ConsoleCommand("createNewRandomPositionsForHaldor",
-                "Adds [count] random positions to the Haldor to relocate",
+                "Adds [count] random positions to the [Location name] to relocate",
                 args =>
                 {
                     try
@@ -87,21 +84,23 @@ public static class TerminalCommands
                         if (!ZoneSystem.instance)
                             throw new Exception("Command cannot be executed in game menu");
 
-                        if (args.Args.Length == 1 || !int.TryParse(args.Args[1], out var count))
+                        if (args.Args.Length < 2 || !int.TryParse(args.Args[1], out var count))
                             throw new Exception("First argument must be a number");
+                        if (args.Args.Length < 3)
+                            throw new Exception("First argument must be a location name (string)");
 
-                        var haldorPrefab = GetHaldorPrefab();
-                        var haldorLocationsVanilaCount = haldorPrefab.m_quantity;
-                        haldorPrefab.m_quantity = count;
-                        var isUnique = haldorPrefab.m_unique;
-                        haldorPrefab.m_unique = false;
+                        var location = ZoneSystem.instance.GetLocation(args[2]);
+                        var haldorLocationsVanillaCount = location.m_quantity;
+                        location.m_quantity = count;
+                        var isUnique = location.m_unique;
+                        location.m_unique = false;
 
-                        ZoneSystem.instance.GenerateLocations(haldorPrefab);
+                        ZoneSystem.instance.GenerateLocations(location);
 
                         args.Context.AddString(
-                            $"Done. Now this is list of all haldor posible positions: {merchantPositions.GetString()}");
-                        haldorPrefab.m_quantity = haldorLocationsVanilaCount;
-                        haldorPrefab.m_unique = isUnique;
+                            $"Done. Now this is list of all haldor possible positions: {locationsPositions.GetString()}");
+                        location.m_quantity = haldorLocationsVanillaCount;
+                        location.m_unique = isUnique;
                     }
                     catch (Exception e)
                     {

@@ -105,16 +105,23 @@
         <Reference Include="UnityEngine.VirtualTexturingModule">
             <HintPath>..\..\Unity\Unity Hub\versions\2020.3.36f1\Editor\Data\Managed\UnityEngine\UnityEngine.VirtualTexturingModule.dll</HintPath>
         </Reference>
+        <Reference Include="YamlDotNet, Version=13.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
+            <HintPath>packages\YamlDotNet.13.2.0\lib\net47\YamlDotNet.dll</HintPath>
+        </Reference>
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Extensions\GameObjectExtension.cs" />
-        <Compile Include="Extensions\ListExtension.cs" />
+        <Compile Include="Extensions\EnumerableExtension.cs" />
+        <Compile Include="Extensions\MinimapExtension.cs" />
+        <Compile Include="Extensions\SimpleVector2.cs" />
+        <Compile Include="Extensions\SimpleVector3.cs" />
         <Compile Include="Extensions\VectorExtension.cs" />
         <Compile Include="Extensions\ZDOExtension.cs" />
+        <Compile Include="Extensions\ZNetSceneExtension.cs" />
+        <Compile Include="Extensions\ZoneSystemExtension.cs" />
         <Compile Include="Patch\RandomlyRelocateOnMorning.cs" />
         <Compile Include="Patch\PreventRegisteringLocation.cs" />
-        <Compile Include="Patch\RegisterRPC.cs" />
-        <Compile Include="Patch\SaveIDs.cs" />
+        <Compile Include="Patch\UpdateConfigOnZoneSysStart.cs" />
         <Compile Include="Plugin.cs" />
         <Compile Include="ConfigurationManagerAttributes.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />

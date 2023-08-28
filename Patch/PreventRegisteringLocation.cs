@@ -1,4 +1,4 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
 using Extensions;
 using HarmonyLib;
 using UnityEngine;
@@ -11,43 +11,27 @@ namespace MerchantSpawnTweaks.Patch;
 public static class PreventRegisteringLocation
 {
     [HarmonyPatch(typeof(ZoneSystem), nameof(ZoneSystem.RegisterLocation))]
-    [HarmonyPrefix]
+    [HarmonyPrefix, HarmonyWrapSafe]
     private static bool ZoneSystem_RegisterLocation(ZoneSystem __instance, ZoneLocation location,
         Vector3 pos, bool generated)
     {
-        if (location.m_prefabName != HALDOR_LOCATION_NAME) return true;
+        if (!locationsToMove.Contains(location.m_prefabName)) return true;
 
-        location.m_iconAlways = true;
+        var posNoY = pos.ToV2().RoundCords().ToSimpleVector2();
+        if (!locationsPositions.ContainsKey(location.m_prefabName))
+            locationsPositions.Add(location.m_prefabName, new() { posNoY });
+        else locationsPositions[location.m_prefabName].TryAdd(posNoY);
+        UpdatePositionsFile();
+        _self.Config.Reload();
+        _self.UpdateConfiguration();
 
-        var posNoY = pos.ToV2().RoundCords();
-        if (merchantCurrentPosition == Vector2.zero || GetHaldors().Count <= 0)
+        if (instance.GetGeneratedLocationsByName(location.m_prefabName).Length <= 0)
         {
-            if (merchantPositions.Count > 0)
-            {
-                merchantCurrentPositionConfig.Value = merchantPositions.First();
-            }
-            else
-            {
-                merchantPositions.TryAdd(posNoY);
-                SetMerchantPositionsConfig();
-                merchantCurrentPositionConfig.Value = posNoY;
-                var vector2I = instance.GetZone(pos);
-                haldorFirstZoneConfig.Value = new Vector2(vector2I.x, vector2I.y);
-
-                _self.Config.Reload();
-                _self.UpdateConfiguration();
-            }
-
-
-            Debug("Alowing haldor to spawn");
-
+            Debug("Allowing haldor to spawn");
             return true;
         }
 
         Debug("Prevented haldor to spawn");
-        merchantPositions.TryAdd(posNoY);
-        SetMerchantPositionsConfig();
-        
         return false;
     }
 }

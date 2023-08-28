@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Extensions;
 
-public static class ListExtension
+public static class EnumerableExtension
 {
     public static T Random<T>(this List<T> list)
     {
@@ -21,6 +21,14 @@ public static class ListExtension
     {
         var result = new List<Vector3>();
         for (var i = 0; i < list.Count; i++) result.Add(new Vector3((int)list[i].x, (int)list[i].y, (int)list[i].z));
+
+        return result;
+    }
+
+    public static List<Vector2> RoundCords(this List<Vector2> list)
+    {
+        var result = new List<Vector2>();
+        for (var i = 0; i < list.Count; i++) result.Add(new Vector2((int)list[i].x, (int)list[i].y));
 
         return result;
     }

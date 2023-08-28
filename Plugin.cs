@@ -9,6 +9,8 @@ using Extensions;
 using HarmonyLib;
 using ServerSync;
 using UnityEngine;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace MerchantSpawnTweaks;
 
@@ -25,26 +27,10 @@ internal class Plugin : BaseUnityPlugin
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
         lastRelocateDayConfig = config("Merchant", "LastRelocateDay", lastRelocateDay,
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
-        merchantCurrentPositionConfig = config("Merchant", "MerchantPosition", merchantCurrentPosition,
-            new ConfigDescription(
-                "Current merchant position.", null, new ConfigurationManagerAttributes
-                {
-                    Browsable = false
-                }));
-        merchantPositionsConfig = config("Merchant", "All merchant positions", string.Empty,
-            "Example:1 1,5 5,66 88  It means haldor can spawn on coordinats x:1 z:1, x:5 z:5 and x:66 z:88");
+        //locationsPositionsConfig = config("Merchant", "All merchant positions", string.Empty,
+        //    "Example:1 1,5 5,66 88  It means haldor can spawn on coordinates x:1 z:1, x:5 z:5 and x:66 z:88");
 
-        savedIDsConfig = config("Do not touch", "savedIDs", string.Empty,
-            new ConfigDescription("Do not touch", null, new ConfigurationManagerAttributes
-            {
-                Browsable = false
-            }));
-        haldorFirstZoneConfig = config("Do not touch", "Haldor first zone", haldorFirstZone,
-            new ConfigDescription("Do not touch", null, new ConfigurationManagerAttributes
-            {
-                Browsable = false
-            }));
-
+        locationsToMoveConfig = config("Main", "LocationsToMove", "Vendor_BlackForest, Hildir_camp", "");
         SetupWatcher();
         Config.ConfigReloaded += (_, _) => UpdateConfiguration();
         Config.SaveOnConfigSet = true;
@@ -56,32 +42,23 @@ internal class Plugin : BaseUnityPlugin
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), ModGUID);
     }
 
-    internal static List<KeyValuePair<Vector2i, ZoneSystem.LocationInstance>> GetHaldors()
-    {
-        return ZoneSystem.instance.m_locationInstances
-            .Where(x => x.Value.m_location.m_prefabName == HALDOR_LOCATION_NAME)
-            .ToList();
-    }
-
-    internal static ZoneSystem.ZoneLocation GetHaldorPrefab()
-    {
-        return ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
-    }
-
     #region values
 
     internal const string ModName = "Frogger.MerchantSpawnTweaks", ModVersion = "1.1.0", ModGUID = "com." + ModName;
+
     internal static Plugin _self;
-    internal const string HALDOR_LOCATION_NAME = "Vendor_BlackForest";
+    //internal const string HALDOR_LOCATION_NAME = "Vendor_BlackForest";
 
     #endregion
 
+    //internal static ZoneSystem.ZoneLocation GetHaldorPrefab() => ZoneSystem.instance.GetLocation(HALDOR_LOCATION_NAME);
 
     #region tools
 
-    public static void Debug(object msg)
+    public static void Debug(object msg, bool showInConsole = false)
     {
         _self.Logger.LogInfo(msg);
+        if (showInConsole && Console.IsVisible()) Console.instance.AddString(msg.ToString());
     }
 
     public static void DebugError(object msg, bool showWriteToDev = true)
@@ -129,12 +106,21 @@ internal class Plugin : BaseUnityPlugin
 
     private void SetupWatcher()
     {
-        FileSystemWatcher fileSystemWatcher = new(Paths.ConfigPath, ConfigFileName);
-        fileSystemWatcher.Changed += ConfigChanged;
-        fileSystemWatcher.IncludeSubdirectories = true;
-        fileSystemWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-        fileSystemWatcher.EnableRaisingEvents = true;
+        FileSystemWatcher mainConfigFileSystemWatcher = new(Paths.ConfigPath, ConfigFileName);
+        mainConfigFileSystemWatcher.Changed += ConfigChanged;
+        mainConfigFileSystemWatcher.IncludeSubdirectories = true;
+        mainConfigFileSystemWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+        mainConfigFileSystemWatcher.EnableRaisingEvents = true;
+
+        FileSystemWatcher positionsWatcher = new(Paths.ConfigPath, secondConfigFileName);
+        positionsWatcher.Changed += LoadPositionsFromFile;
+        positionsWatcher.IncludeSubdirectories = true;
+        positionsWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+        positionsWatcher.EnableRaisingEvents = true;
+
+        void LoadPositionsFromFile(object sender, FileSystemEventArgs e) => Plugin.LoadPositionsFromFile();
     }
+
 
     private void ConfigChanged(object sender, FileSystemEventArgs e)
     {
@@ -162,19 +148,27 @@ internal class Plugin : BaseUnityPlugin
 
     //public static ConfigEntry<bool> modEnabledConfig;
     public static ConfigEntry<int> relocateIntervalConfig;
+
     public static ConfigEntry<int> lastRelocateDayConfig;
-    public static ConfigEntry<Vector2> merchantCurrentPositionConfig;
-    public static ConfigEntry<string> merchantPositionsConfig;
-    public static ConfigEntry<string> savedIDsConfig;
-    public static ConfigEntry<Vector2> haldorFirstZoneConfig;
+    //public static ConfigEntry<string> locationsPositionsConfig;
+
+    public static ConfigEntry<string> locationsToMoveConfig;
 
     //public static bool modEnabled;
     public static int relocateInterval = 1;
     public static int lastRelocateDay;
-    public static Vector2 merchantCurrentPosition = Vector3.zero;
-    public static List<int> savedIDs = new();
-    public static List<Vector2> merchantPositions = new();
-    public static Vector2 haldorFirstZone = Vector2.zero;
+
+    public static List<string> locationsToMove = new();
+
+    public static Dictionary<string, List<SimpleVector2>> locationsPositions = new()
+    {
+        {
+            "Vendor_BlackForest", new()
+        },
+        {
+            "Hildir_camp", new()
+        }
+    };
 
     #endregion
 
@@ -184,43 +178,68 @@ internal class Plugin : BaseUnityPlugin
         {
             relocateInterval = relocateIntervalConfig.Value;
             lastRelocateDay = lastRelocateDayConfig.Value;
-            merchantCurrentPosition = merchantCurrentPositionConfig.Value;
-            haldorFirstZone = haldorFirstZoneConfig.Value;
-            var strings = savedIDsConfig.Value.Split(new char[1] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            if (strings.Length > 0) savedIDs = strings.Select(x => int.Parse(x)).ToList();
+            locationsToMove = locationsToMoveConfig.Value
+                .Split(new string[1] { ", " }, StringSplitOptions.RemoveEmptyEntries).ToList();
 
-            // 1 1, 5 5, 66 88
-            SetMerchantPositionsFromString(merchantPositionsConfig.Value);
+            LoadPositionsFromFile();
+
+
+            if (ZoneSystem.instance)
+            {
+                foreach (var loc in locationsToMove)
+                {
+                    var where = ZoneSystem.instance.m_locationInstances
+                        .Where(x => x.Value.m_location.m_prefabName == loc)
+                        .ToDictionary(x => x.Key, y => y.Value);
+
+                    var first = where.First();
+                    where.Remove(first.Key);
+                    ZoneSystem.instance.m_locationInstances =
+                        ZoneSystem.instance.m_locationInstances.Where(x => !where.Contains(x))
+                            .ToDictionary(x => x.Key, y => y.Value);
+                }
+            }
+
             Debug("Configuration Received");
         }
         catch (Exception e)
         {
-            DebugError(e.Message, false);
+            DebugError($"Configuration error: {e.Message}", false);
         }
     }
 
-    internal static void SetMerchantPositionsFromString(string str)
-    {
-        merchantPositions = new List<Vector2>();
-        var strings = str.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        if (strings.Length < 1) return;
-        foreach (var vectorString in strings)
-        {
-            var coords = vectorString.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (coords.Length < 2) return;
+    // internal static void SetMerchantPositionsFromString()
+    // {
+    //     var deserializer = new DeserializerBuilder()
+    //         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+    //         .Build();
+    //
+    //     locationsPositions = deserializer.Deserialize<Dictionary<string, List<Vector2>>>(str);
+    // }
 
-            var vector2 = new Vector2();
-            vector2.x = int.Parse(coords[0]);
-            vector2.y = int.Parse(coords[1]);
-            merchantPositions.TryAdd(vector2);
-        }
+    internal static void UpdatePositionsFile()
+    {
+        var serializer = new SerializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+
+        var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
+        using (StreamWriter writer = new(path, false)) writer.Write(serializer.Serialize(locationsPositions));
     }
 
-    internal static void SetMerchantPositionsConfig()
+    static string secondConfigFileName = $"{ModName.Replace("Frogger.", string.Empty)}.config.yml";
+
+    internal static void LoadPositionsFromFile()
     {
-        merchantPositionsConfig.Value = string.Join(",", merchantPositions.Select(x => $"{x.x} {x.y}"));
-        _self.Config.Reload();
-        _self.UpdateConfiguration();
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+
+        var str = string.Empty;
+        var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
+        if (!File.Exists(path)) UpdatePositionsFile();
+        using (StreamReader reader = new(path)) str = reader.ReadToEnd();
+        locationsPositions = deserializer.Deserialize<Dictionary<string, List<SimpleVector2>>>(str);
     }
 
     #endregion

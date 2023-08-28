@@ -1,6 +1,4 @@
-﻿using Extensions;
-
-namespace MerchantSpawnTweaks;
+﻿namespace Extensions;
 
 public static class ZDOExtension
 {
