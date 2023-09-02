@@ -1,9 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Extensions;
+using Extensions.Valheim;
 using HarmonyLib;
 using UnityEngine;
 using static TravelingLocations.Plugin;
 using static ZoneSystem;
+using static ZNetScene;
 
 namespace TravelingLocations.Patch;
 
@@ -16,17 +19,23 @@ public static class PreventRegisteringLocation
     private static bool ZoneSystem_RegisterLocation(ZoneSystem __instance, ZoneLocation location,
         Vector3 pos, bool generated)
     {
-        if (!locationsPositions.ContainsKey(location.m_prefabName)) return true;
+        var locationsNames = locationsConfig.GetAllLocationsNames();
+        if (!locationsNames.Contains(location.m_prefabName)) return true;
 
         var posNoY = pos.ToV2().RoundCords().ToSimpleVector2();
-        if (!locationsPositions.ContainsKey(location.m_prefabName))
-            locationsPositions.Add(location.m_prefabName, new List<SimpleVector2> { posNoY });
-        else locationsPositions[location.m_prefabName].TryAdd(posNoY);
+        if (!locationsNames.Contains(location.m_prefabName))
+            locationsConfig.locations.Add(new()
+            {
+                clearAreaAfterRelocating = true,
+                name = location.m_prefabName,
+                positions = new() { posNoY }
+            });
+        else locationsConfig.GetLocationConfig(location.m_prefabName).positions.TryAdd(posNoY);
         UpdatePositionsFile();
         _self.Config.Reload();
         _self.UpdateConfiguration();
 
-        if (instance.GetGeneratedLocationsByName(location.m_prefabName).Length <= 0)
+        if (ZoneSystem.instance.GetGeneratedLocationsByName(location.m_prefabName).Length <= 0)
         {
             Debug("Allowing haldor to spawn");
             return true;

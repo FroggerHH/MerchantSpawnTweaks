@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Extensions;
+using Extensions.Valheim;
 using UnityEngine;
 using static ZoneSystem;
 using static HeightmapBuilder;
@@ -32,7 +33,7 @@ public static class Relocator
     {
         var now = DateTime.Now;
         calculationsFinished = true;
-        foreach (var locationName in locationsPositions.Keys.ToList())
+        foreach (var locationName in locationsConfig.GetAllLocationsNames())
         {
             var locationTuple = ZoneSystem.instance.GetGeneratedLocationsByName(locationName).First();
             if (locationTuple.Item2.m_location != null && !locationTuple.Item2.m_placed)
@@ -61,7 +62,7 @@ public static class Relocator
             else
             {
                 Debug($"Finding new place to relocate {locationName}...");
-                var newPosition = locationsPositions[locationName].Random();
+                var newPosition = locationsConfig.GetLocationConfig(locationName).positions.Random();
                 var position = newPosition.ToVector2().ToV3();
                 var data = new HMBuildData(position, 1, 1, false, WorldGenerator.instance);
                 HeightmapBuilder.instance.Build(data);

@@ -1,4 +1,4 @@
-﻿namespace Extensions;
+﻿namespace Extensions.Valheim;
 
 public static class MinimapExtension
 {

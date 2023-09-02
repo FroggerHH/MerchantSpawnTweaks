@@ -148,11 +148,7 @@ internal class Plugin : BaseUnityPlugin
     public static int relocateInterval = 1;
     public static int lastRelocateDay;
 
-    public static Dictionary<string, List<SimpleVector2>> locationsPositions = new()
-    {
-        { "Vendor_BlackForest", new List<SimpleVector2>() },
-        { "Hildir_camp", new List<SimpleVector2>() }
-    };
+    public static LocationsConfig locationsConfig = new();
 
     #endregion
 
@@ -166,17 +162,22 @@ internal class Plugin : BaseUnityPlugin
             LoadPositionsFromFile();
 
             if (ZoneSystem.instance)
-                foreach (var loc in locationsPositions.Keys)
+                foreach (var loc in locationsConfig.locations.Select(x => x.name))
                 {
-                    var where = ZoneSystem.instance.m_locationInstances
-                        .Where(x => x.Value.m_location.m_prefabName == loc)
-                        .ToDictionary(x => x.Key, y => y.Value);
+                    // var where = ZoneSystem.instance.m_locationInstances
+                    //     .Where(x => x.Value.m_location.m_prefabName == loc)
+                    //     .ToDictionary(x => x.Key, y => y.Value);
+                    //
+                    // var first = where.First();
+                    // where.Remove(first.Key);
+                    // ZoneSystem.instance.m_locationInstances =
+                    //     ZoneSystem.instance.m_locationInstances.Where(x => !where.Contains(x))
+                    //         .ToDictionary(x => x.Key, y => y.Value);
 
-                    var first = where.First();
-                    where.Remove(first.Key);
-                    ZoneSystem.instance.m_locationInstances =
-                        ZoneSystem.instance.m_locationInstances.Where(x => !where.Contains(x))
-                            .ToDictionary(x => x.Key, y => y.Value);
+                    var location = ZoneSystem.instance.GetLocation(loc);
+                    if (location == null)
+                        DebugError($"Could not find location with name {loc}");
+                    else if (location.m_unique == false) DebugError($"Location {loc} needs to be unique.");
                 }
 
             Debug("Configuration Received");
@@ -205,7 +206,7 @@ internal class Plugin : BaseUnityPlugin
         var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
         using (StreamWriter writer = new(path, false))
         {
-            writer.Write(serializer.Serialize(locationsPositions));
+            writer.Write(serializer.Serialize(locationsConfig));
         }
     }
 
@@ -225,7 +226,7 @@ internal class Plugin : BaseUnityPlugin
             str = reader.ReadToEnd();
         }
 
-        locationsPositions = deserializer.Deserialize<Dictionary<string, List<SimpleVector2>>>(str);
+        locationsConfig = deserializer.Deserialize<LocationsConfig>(str);
     }
 
     #endregion

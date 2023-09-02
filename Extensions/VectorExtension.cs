@@ -33,4 +33,25 @@ public static class VectorExtension
     {
         return new Vector2(vector3.x, y);
     }
+
+
+    public static float DistanceXZ(this Vector3 pos, Vector3 otherPos)
+    {
+        return Utils.DistanceXZ(pos, otherPos);
+    }
+
+    public static float DistanceXZ(this Vector3 pos, Transform otherPos)
+    {
+        return Utils.DistanceXZ(pos, otherPos.position);
+    }
+
+    public static float DistanceXZ(this Vector3 pos, Component otherPos)
+    {
+        return Utils.DistanceXZ(pos, otherPos.transform.position);
+    }
+
+    public static float DistanceXZ(this Vector3 pos, GameObject otherPos)
+    {
+        return Utils.DistanceXZ(pos, otherPos.transform.position);
+    }
 }

@@ -28,6 +28,7 @@ public struct SimpleVector3 : IEquatable<SimpleVector3>
     public override string ToString()
     {
         return $"X: {x}, Y: {y}, Z: {z}";
+        //return $"{x}, {y}, {z}";
     }
 
     public Vector3 ToVector3()

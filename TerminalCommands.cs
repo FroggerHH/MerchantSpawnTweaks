@@ -62,8 +62,17 @@ public static class TerminalCommands
                             (Player.m_localPlayer.transform.position + Player.m_localPlayer.transform.forward * 2f +
                              Vector3.up).RoundCords().ToV2().ToSimpleVector2();
 
-                        if (locationsPositions.ContainsKey(locName)) locationsPositions[locName].TryAdd(newPos);
-                        else locationsPositions.Add(locName, new List<SimpleVector2> { newPos });
+                        if (locationsConfig.GetAllLocationsNames().Contains(locName))
+                            locationsConfig.GetLocationConfig(locName).positions.TryAdd(newPos);
+                        else
+                        {
+                            locationsConfig.locations.Add(new()
+                            {
+                                clearAreaAfterRelocating = true,
+                                name = locName,
+                                positions = new() { newPos }
+                            });
+                        }
 
                         args.Context.AddString($"Done, position {newPos} added");
                         UpdatePositionsFile();
@@ -96,8 +105,7 @@ public static class TerminalCommands
 
                         ZoneSystem.instance.GenerateLocations(location);
 
-                        args.Context.AddString(
-                            $"Done. Now this is list of all haldor possible positions: {locationsPositions.GetString()}");
+                        args.Context.AddString($"Done.");
                         location.m_quantity = haldorLocationsVanillaCount;
                         location.m_unique = isUnique;
                     }

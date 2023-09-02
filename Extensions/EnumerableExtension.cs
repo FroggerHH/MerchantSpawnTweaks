@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Extensions;
@@ -38,9 +39,9 @@ public static class EnumerableExtension
         return string.Join(separator, list);
     }
 
-    public static void TryAdd<T>(this List<T> list, T value)
+    public static void TryAdd<T>(this List<T> sequence, T item)
     {
-        if (!list.Contains(value)) list.Add(value);
+        if (!sequence.Contains(item)) sequence.Add(item);
     }
 
     public static T Next<T>(this List<T> list, T current)
@@ -56,5 +57,26 @@ public static class EnumerableExtension
         }
 
         return list[list.IndexOf(current) + 1];
+    }
+
+
+    public static T Nearest<T>(this IEnumerable<T> list, Vector3 nearestTo) where T : Component
+    {
+        var current = default(T);
+
+        float oldDistance = int.MaxValue;
+        if (list == null || list.Count() == 0) return current;
+        foreach (var pos_ in list)
+        {
+            var pos = pos_.transform.position;
+            var dist = Utils.DistanceXZ(nearestTo, pos);
+            if (dist < oldDistance)
+            {
+                current = pos_;
+                oldDistance = dist;
+            }
+        }
+
+        return current;
     }
 }

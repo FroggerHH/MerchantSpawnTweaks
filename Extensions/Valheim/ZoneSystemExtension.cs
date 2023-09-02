@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 
-namespace Extensions;
+namespace Extensions.Valheim;
 
 public static class ZoneSystemExtension
 {
