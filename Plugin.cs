@@ -1,201 +1,68 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
+﻿using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
-using Extensions;
-using HarmonyLib;
-using ServerSync;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace TravelingLocations;
 
-[BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInPlugin(ModGuid, ModName, ModVersion)]
 internal class Plugin : BaseUnityPlugin
 {
+    internal const string
+        ModAuthor = "Frogger",
+        ModName = "TravelingLocations",
+        ModVersion = "2.1.0",
+        ModGuid = $"com.{ModAuthor}.{ModName}";
+
+    public static ConfigEntry<int> RelocateIntervalConfig;
+    public static ConfigEntry<int> LastRelocateDayConfig;
+    public static int RelocateInterval = 1;
+    public static int LastRelocateDay;
+    public static LocationsConfig locationsConfig = new();
+
+    private static readonly string SecondConfigFileName = $"{ModName.Replace("Frogger.", string.Empty)}.config.yml";
+
     private void Awake()
     {
-        _self = this;
-
-        Config.SaveOnConfigSet = false;
-        relocateIntervalConfig = config("Merchant", "RelocateInterval", relocateInterval,
+        CreateMod(this, ModName, ModAuthor, ModVersion, ModGuid, pathAll: true);
+        OnConfigurationChanged += UpdateConfiguration;
+        RelocateIntervalConfig = config("General", "RelocateInterval", RelocateInterval,
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
-        lastRelocateDayConfig = config("Merchant", "LastRelocateDay", lastRelocateDay,
+        LastRelocateDayConfig = config("General", "LastRelocateDay", LastRelocateDay,
             "Number of days before merchant relocates. Sit to 0 to disable relocation.");
 
         SetupWatcher();
-        Config.ConfigReloaded += (_, _) => UpdateConfiguration();
-        Config.SaveOnConfigSet = true;
-        Config.Save();
-
-        //if (!modEnabledConfig.Value)
-        //    return;
-
-        Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), ModGUID);
-    }
-
-    #region values
-
-    internal const string ModName = "Frogger.TravelingLocations", ModVersion = "2.0.0", ModGUID = "com." + ModName;
-
-    internal static Plugin _self;
-
-    #endregion
-
-
-    #region tools
-
-    public static void Debug(object msg, bool showInConsole = false)
-    {
-        _self.Logger.LogInfo(msg);
-        if (showInConsole && Console.IsVisible()) Console.instance.AddString(msg.ToString());
-    }
-
-    public static void DebugError(object msg, bool showWriteToDev = true)
-    {
-        if (showWriteToDev) msg += "Write to the developer and moderator if this happens often.";
-
-        _self.Logger.LogError(msg);
-    }
-
-    public static void DebugWarning(object msg, bool showWriteToDev = false)
-    {
-        if (showWriteToDev) msg += "Write to the developer and moderator if this happens often.";
-
-        _self.Logger.LogWarning(msg);
-    }
-
-    #endregion
-
-    #region ConfigSettings
-
-    #region tools
-
-    private static readonly string ConfigFileName = $"{ModGUID}.cfg";
-    private DateTime LastConfigChange;
-
-    public static readonly ConfigSync configSync = new(ModName)
-        { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
-
-    public static ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description,
-        bool synchronizedSetting = true)
-    {
-        var configEntry = _self.Config.Bind(group, name, value, description);
-
-        var syncedConfigEntry = configSync.AddConfigEntry(configEntry);
-        syncedConfigEntry.SynchronizedConfig = synchronizedSetting;
-
-        return configEntry;
-    }
-
-    private ConfigEntry<T> config<T>(string group, string name, T value, string description,
-        bool synchronizedSetting = true)
-    {
-        return config(group, name, value, new ConfigDescription(description), synchronizedSetting);
     }
 
     private void SetupWatcher()
     {
-        FileSystemWatcher mainConfigFileSystemWatcher = new(Paths.ConfigPath, ConfigFileName);
-        mainConfigFileSystemWatcher.Changed += ConfigChanged;
-        mainConfigFileSystemWatcher.IncludeSubdirectories = true;
-        mainConfigFileSystemWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-        mainConfigFileSystemWatcher.EnableRaisingEvents = true;
-
-        FileSystemWatcher positionsWatcher = new(Paths.ConfigPath, secondConfigFileName);
+        FileSystemWatcher positionsWatcher = new(Paths.ConfigPath, SecondConfigFileName);
         positionsWatcher.Changed += LoadPositionsFromFile;
         positionsWatcher.IncludeSubdirectories = true;
         positionsWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
         positionsWatcher.EnableRaisingEvents = true;
 
-        void LoadPositionsFromFile(object sender, FileSystemEventArgs e)
-        {
-            Plugin.LoadPositionsFromFile();
-        }
+        void LoadPositionsFromFile(object sender, FileSystemEventArgs e) { Plugin.LoadPositionsFromFile(); }
     }
 
-
-    private void ConfigChanged(object sender, FileSystemEventArgs e)
+    private void UpdateConfiguration()
     {
-        if ((DateTime.Now - LastConfigChange).TotalSeconds <= 2) return;
+        RelocateInterval = RelocateIntervalConfig.Value;
+        LastRelocateDay = LastRelocateDayConfig.Value;
 
-        LastConfigChange = DateTime.Now;
-        try
-        {
-            Config.Reload();
-        }
-        catch
-        {
-            DebugError("Can't reload Config");
-        }
+        LoadPositionsFromFile();
+
+        if (ZoneSystem.instance && Game.instance)
+            foreach (var loc in locationsConfig.locations.Select(x => x.name))
+            {
+                var location = ZoneSystem.instance.GetLocation(loc);
+                if (location == null) DebugError($"Could not find location with name {loc}");
+                else if (location.m_unique == false) DebugError($"Location {loc} needs to be unique.");
+            }
+
+        Debug("Configuration Received");
     }
-
-    internal void ConfigChanged()
-    {
-        ConfigChanged(null, null);
-    }
-
-    #endregion
-
-    #region configs
-
-    public static ConfigEntry<int> relocateIntervalConfig;
-    public static ConfigEntry<int> lastRelocateDayConfig;
-
-    public static int relocateInterval = 1;
-    public static int lastRelocateDay;
-
-    public static LocationsConfig locationsConfig = new();
-
-    #endregion
-
-    internal void UpdateConfiguration()
-    {
-        try
-        {
-            relocateInterval = relocateIntervalConfig.Value;
-            lastRelocateDay = lastRelocateDayConfig.Value;
-
-            LoadPositionsFromFile();
-
-            if (ZoneSystem.instance)
-                foreach (var loc in locationsConfig.locations.Select(x => x.name))
-                {
-                    // var where = ZoneSystem.instance.m_locationInstances
-                    //     .Where(x => x.Value.m_location.m_prefabName == loc)
-                    //     .ToDictionary(x => x.Key, y => y.Value);
-                    //
-                    // var first = where.First();
-                    // where.Remove(first.Key);
-                    // ZoneSystem.instance.m_locationInstances =
-                    //     ZoneSystem.instance.m_locationInstances.Where(x => !where.Contains(x))
-                    //         .ToDictionary(x => x.Key, y => y.Value);
-
-                    var location = ZoneSystem.instance.GetLocation(loc);
-                    if (location == null)
-                        DebugError($"Could not find location with name {loc}");
-                    else if (location.m_unique == false) DebugError($"Location {loc} needs to be unique.");
-                }
-
-            Debug("Configuration Received");
-        }
-        catch (Exception e)
-        {
-            DebugError($"Configuration error: {e.Message}", false);
-        }
-    }
-
-    // internal static void SetMerchantPositionsFromString()
-    // {
-    //     var deserializer = new DeserializerBuilder()
-    //         .WithNamingConvention(CamelCaseNamingConvention.Instance)
-    //         .Build();
-    //
-    //     locationsPositions = deserializer.Deserialize<Dictionary<string, List<Vector2>>>(str);
-    // }
 
     internal static void UpdatePositionsFile()
     {
@@ -203,31 +70,49 @@ internal class Plugin : BaseUnityPlugin
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .Build();
 
-        var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
+        var path = Path.Combine(Paths.ConfigPath, SecondConfigFileName);
         using (StreamWriter writer = new(path, false))
-        {
-            writer.Write(serializer.Serialize(locationsConfig));
-        }
+            writer.Write(serializer.Serialize(locationsConfig.locations));
     }
 
-    private static readonly string secondConfigFileName = $"{ModName.Replace("Frogger.", string.Empty)}.config.yml";
-
-    internal static void LoadPositionsFromFile()
+    public static void LoadPositionsFromFile()
     {
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .Build();
+        List<LocationsConfig.LocationConfig> Recreate(string path, IDeserializer deserializer)
+        {
+            string str1;
+            locationsConfig.SetupBasic();
+            UpdatePositionsFile();
+            using (StreamReader reader = new(path))
+            {
+                str1 = reader.ReadToEnd();
+            }
 
+            return deserializer.Deserialize<List<LocationsConfig.LocationConfig>>(str1);
+        }
+
+        var deserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
         var str = string.Empty;
-        var path = Path.Combine(Paths.ConfigPath, secondConfigFileName);
+        var path = Path.Combine(Paths.ConfigPath, SecondConfigFileName);
         if (!File.Exists(path)) UpdatePositionsFile();
         using (StreamReader reader = new(path))
         {
             str = reader.ReadToEnd();
         }
 
-        locationsConfig = deserializer.Deserialize<LocationsConfig>(str);
-    }
+        List<LocationsConfig.LocationConfig> deserialize;
+        if (!str.IsGood()) deserialize = Recreate(path, deserializer);
+        try
+        {
+            deserialize = deserializer.Deserialize<List<LocationsConfig.LocationConfig>>(str);
+        }
+        catch (Exception e)
+        {
+            deserialize = Recreate(path, deserializer);
+        }
 
-    #endregion
+        locationsConfig.locations = deserialize;
+        locationsConfig.GeneratePositionsIfNeeded();
+
+        Debug("Locations positions updated");
+    }
 }

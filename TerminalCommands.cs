@@ -1,20 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using Extensions;
-using HarmonyLib;
-using UnityEngine;
-using UnityEngine.Rendering;
-using static TravelingLocations.Plugin;
-using static Terminal;
+﻿using static Terminal;
 
 namespace TravelingLocations;
 
 public static class TerminalCommands
 {
-    private static bool isServer => SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null;
-    private static string modName => ModName;
-
-
     [HarmonyPatch(typeof(Terminal), nameof(InitTerminal))]
     [HarmonyWrapSafe]
     internal class AddChatCommands
@@ -24,37 +13,26 @@ public static class TerminalCommands
             new ConsoleCommand("randomlyrelocatelocs", "",
                 args =>
                 {
-                    try
+                    RunCommand(args =>
                     {
-                        if (!configSync.IsAdmin && !ZNet.instance.IsServer())
-                        {
-                            args.Context.AddString("You are not an admin on this server.");
-                            return;
-                        }
+                        if (!IsAdmin) throw new ConsoleCommandException("You are not an admin on this server.");
 
                         Relocator.RandomlyRelocateLocations(true);
 
-                        args.Context.AddString("Wait for it, it is a long process. Do not spam command");
-                    }
-                    catch (Exception e)
-                    {
-                        args.Context.AddString("<color=red>Error: " + e.Message + "</color>");
-                    }
+                        args.Context.AddString(
+                            "<color=yellow>Wait for it, it is a long process. Do not spam command</color>");
+                    }, args);
                 }, true);
             new ConsoleCommand("addPos",
                 "[Location name] Player position will be added to list of valid positions for merchant to spawn",
                 args =>
                 {
-                    try
+                    RunCommand(args =>
                     {
-                        if (!configSync.IsAdmin && !ZNet.instance.IsServer())
-                        {
-                            args.Context.AddString("You are not an admin on this server.");
-                            return;
-                        }
+                        if (!IsAdmin) throw new ConsoleCommandException("You are not an admin on this server.");
 
                         if (args.Args.Length == 1)
-                            throw new Exception("First argument must be a location name (string)");
+                            throw new ConsoleCommandException("First argument must be a location name (string)");
 
                         var locName = args[1];
 
@@ -65,54 +43,51 @@ public static class TerminalCommands
                         if (locationsConfig.GetAllLocationsNames().Contains(locName))
                             locationsConfig.GetLocationConfig(locName).positions.TryAdd(newPos);
                         else
-                        {
-                            locationsConfig.locations.Add(new()
+                            locationsConfig.locations.Add(new LocationsConfig.LocationConfig
                             {
                                 clearAreaAfterRelocating = true,
                                 name = locName,
-                                positions = new() { newPos }
+                                positions = new List<SimpleVector2> { newPos }
                             });
-                        }
 
                         args.Context.AddString($"Done, position {newPos} added");
                         UpdatePositionsFile();
-                    }
-                    catch (Exception e)
-                    {
-                        args.Context.AddString("<color=red>Error: " + e.Message + "</color>");
-                    }
+                    }, args);
                 }, true);
 
             new ConsoleCommand("createRandomPositions",
                 "Adds [count] random positions to the [Location name] to relocate",
                 args =>
                 {
-                    try
+                    RunCommand(args =>
                     {
                         if (!ZoneSystem.instance)
-                            throw new Exception("Command cannot be executed in game menu");
+                            throw new ConsoleCommandException("Command cannot be executed in game menu");
 
-                        if (args.Args.Length < 2 || !int.TryParse(args.Args[1], out var count))
-                            throw new Exception("First argument must be a number");
+                        if (!IsAdmin) throw new ConsoleCommandException("You are not an admin on this server.");
+
+                        if (args.Args.Length < 2)
+                            throw new ConsoleCommandException("First argument must be a number");
+                        if (!int.TryParse(args.Args[1], out var count))
+                            throw new ConsoleCommandException($"{args.Args[1]} is not valid a number");
                         if (args.Args.Length < 3)
-                            throw new Exception("First argument must be a location name (string)");
+                            throw new ConsoleCommandException("First argument must be a location name (string)");
 
-                        var location = ZoneSystem.instance.GetLocation(args[2]);
-                        var haldorLocationsVanillaCount = location.m_quantity;
-                        location.m_quantity = count;
-                        var isUnique = location.m_unique;
-                        location.m_unique = false;
+                        var locationName = args[2];
+                        var location = locationsConfig.GetLocationConfig(locationName);
+                        if (!location)
+                            locationsConfig.locations.Add(
+                                new LocationsConfig.LocationConfig { name = locationName });
 
-                        ZoneSystem.instance.GenerateLocations(location);
+                        var placesForLocation = ZoneSystem.instance.CreateValidPlacesForLocation(locationName, count);
+                        foreach (var newPos in placesForLocation)
+                            location.positions.Add(newPos.ToV2().ToSimpleVector2());
+                        location.positions._Distinct();
 
-                        args.Context.AddString($"Done.");
-                        location.m_quantity = haldorLocationsVanillaCount;
-                        location.m_unique = isUnique;
-                    }
-                    catch (Exception e)
-                    {
-                        args.Context.AddString("<color=red>Error: " + e.Message + "</color>");
-                    }
+                        UpdatePositionsFile();
+
+                        args.Context.AddString("Done.");
+                    }, args);
                 }, true);
         }
     }

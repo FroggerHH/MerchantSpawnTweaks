@@ -1,42 +1,27 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Threading.Tasks;
-using Extensions;
-using Extensions.Valheim;
-using UnityEngine;
-using static ZoneSystem;
 using static HeightmapBuilder;
-using static TravelingLocations.Plugin;
 
 namespace TravelingLocations;
 
 public static class Relocator
 {
-    private static bool calculationsFinished;
-    private static List<ZDO> objects = new();
-    private static List<Task> tasks = new();
     private static bool busy;
 
     public static void RandomlyRelocateLocations(bool sendMapPing = false)
     {
-        //if(busy) return;
-        busy = true;
-        tasks.ForEach(x => x.Dispose());
-        tasks = new List<Task>();
-        _self.StopAllCoroutines();
-        _self.StartCoroutine(RandomlyRelocateLocations_IEnumerator(sendMapPing));
+        RandomlyRelocateLocationsTask(sendMapPing);
     }
 
-    private static IEnumerator RandomlyRelocateLocations_IEnumerator(bool sendMapPing = false)
+    private static async Task RandomlyRelocateLocationsTask(bool sendMapPing = false)
     {
-        var now = DateTime.Now;
-        calculationsFinished = true;
+        busy = true;
+        var watch = Stopwatch.StartNew();
         foreach (var locationName in locationsConfig.GetAllLocationsNames())
         {
-            var locationTuple = ZoneSystem.instance.GetGeneratedLocationsByName(locationName).First();
-            if (locationTuple.Item2.m_location != null && !locationTuple.Item2.m_placed)
+            var (zoneID, locationInstance) =
+                ZoneSystem.instance.GetGeneratedLocationsByName(locationName).FirstOrDefault();
+            if (locationInstance.m_location != null && !locationInstance.m_placed)
             {
                 var msg = $"For first relocation {locationName} location needs to be explored by someone.";
                 DebugWarning(msg);
@@ -44,25 +29,16 @@ public static class Relocator
                 continue;
             }
 
-            calculationsFinished = false;
-            tasks.Add(Task.Run(() =>
-            {
-                Debug("0");
-                GetLocationRelatedObjects(locationTuple.Item2);
-                Debug("1");
-                return Task.CompletedTask;
-            }));
-            Debug("2");
-            yield return new WaitUntil(() => calculationsFinished);
-            Debug("3");
-            if (objects.Count <= 0)
+            var zdos = await Task.Run(() => GetLocationRelatedObjects(locationInstance));
+
+            if (zdos.Count <= 0)
             {
                 DebugError("No objects found", false);
-            }
-            else
+            } else
             {
                 Debug($"Finding new place to relocate {locationName}...");
-                var newPosition = locationsConfig.GetLocationConfig(locationName).positions.Random();
+                var locationConfig = locationsConfig.GetLocationConfig(locationName);
+                var newPosition = locationConfig.positions.Random();
                 var position = newPosition.ToVector2().ToV3();
                 var data = new HMBuildData(position, 1, 1, false, WorldGenerator.instance);
                 HeightmapBuilder.instance.Build(data);
@@ -71,51 +47,43 @@ public static class Relocator
                 var haldorLoc = ZoneSystem.instance.GetLocation(locationName);
                 haldorLoc.m_prefab.transform.position = Vector3.zero;
                 haldorLoc.m_prefab.transform.rotation = Quaternion.identity;
-                foreach (var zdo in objects)
+                foreach (var zdo in zdos)
                 {
-                    if (zdo == null) continue;
-                    var prefabPosition = Vector3.zero;
-                    tasks.Add(Task.Run(() =>
+                    if (zdo == null || !zdo.IsValid()) continue;
+                    var prefabPosition = await Task.Run(() =>
                     {
-                        calculationsFinished = false;
                         var zNetView = haldorLoc.m_netViews.Find(x =>
                             x.GetPrefabName().GetStableHashCode() == zdo.GetPrefab());
-                        prefabPosition = zNetView ? zNetView.transform.position : Vector3.zero;
-                        calculationsFinished = true;
-                        return Task.CompletedTask;
-                    }));
-                    yield return new WaitUntil(() => calculationsFinished = true);
+                        return zNetView ? zNetView.transform.position : Vector3.zero;
+                    });
+
                     var resultPos = position + prefabPosition;
                     zdo.SetPosition(resultPos);
                 }
 
-                lastRelocateDayConfig.Value = EnvMan.instance.GetCurrentDay();
-                _self.Config.Reload();
-                _self.UpdateConfiguration();
-                var zoneIndex = locationTuple.Item1;
-                locationTuple.Item2.m_position = position;
-                ZoneSystem.instance.m_locationInstances[zoneIndex] = locationTuple.Item2;
-                _self.Config.Reload();
-                _self.UpdateConfiguration();
+                LastRelocateDayConfig.Value = EnvMan.instance.GetCurrentDay();
+                GetPlugin().Config.Reload();
+                OnConfigurationChanged?.Invoke();
+                locationInstance.m_position = position;
+                ZoneSystem.instance.m_locationInstances[zoneID] = locationInstance;
+                GetPlugin().Config.Reload();
+                OnConfigurationChanged?.Invoke();
                 Debug($"{locationName} relocated to position {position}");
-
                 if (sendMapPing) Chat.instance.SendPing(newPosition.ToVector2().ToV3());
 
                 var finishedMsg = $"Relocating {locationName} finished.";
 
                 Debug(finishedMsg);
-                if (Console.IsVisible()) Console.instance.AddString($"<color=green>{finishedMsg}</color>");
                 Minimap.instance.ForceUpdateLocationPins();
-                calculationsFinished = true;
             }
         }
 
-        var time = (DateTime.Now - now).TotalSeconds;
-        Debug($"Finished relocating, took {time} seconds.");
+        watch.Stop();
+        Debug($"Finished relocating, took {watch.Elapsed.TotalSeconds} seconds.");
         busy = false;
     }
 
-    internal static void GetLocationRelatedObjects(LocationInstance location)
+    internal static List<ZDO> GetLocationRelatedObjects(LocationInstance location)
     {
         try
         {
@@ -138,15 +106,13 @@ public static class Relocator
 
                 return areaMatch;
             });
-            Debug($"location related objects is {zdos.GetString()}");
-
-            objects = zdos.ToList();
-            calculationsFinished = true;
+            return zdos.ToList();
         }
         catch (Exception e)
         {
             DebugError($"GetLocationRelatedObjects Error: {e.Message}", false);
-            calculationsFinished = true;
         }
+
+        return new List<ZDO>();
     }
 }

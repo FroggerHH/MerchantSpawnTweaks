@@ -1,5 +1,6 @@
-﻿using System;
-using BepInEx.Configuration;
+﻿using BepInEx.Configuration;
+
+namespace TravelingLocations;
 
 /// <summary>
 ///     Class that specifies how a setting should be displayed inside the ConfigurationManager settings window.

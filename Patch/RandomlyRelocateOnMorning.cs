@@ -1,6 +1,4 @@
-﻿using HarmonyLib;
-using JetBrains.Annotations;
-using static TravelingLocations.Plugin;
+﻿using JetBrains.Annotations;
 
 namespace TravelingLocations.Patch;
 
@@ -13,12 +11,11 @@ public static class RandomlyRelocateOnMorning
     {
         if (!ZNet.instance.IsServer()) return;
         var day = __instance.GetCurrentDay();
-        if (relocateInterval > 0 && day - lastRelocateDay >= relocateInterval)
+        if (RelocateInterval > 0 && day - LastRelocateDay >= RelocateInterval)
         {
             Debug("Morning, relocating locations...");
             Relocator.RandomlyRelocateLocations();
-        }
-        else
+        } else
         {
             Debug("Morning.");
         }
